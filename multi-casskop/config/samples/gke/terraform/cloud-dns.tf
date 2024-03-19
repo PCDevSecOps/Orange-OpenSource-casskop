@@ -1,23 +1,25 @@
 // Documentations support : https://github.com/kubernetes-sigs/external-dns/blob/master/docs/tutorials/gke.md
 // Manage DNS Zone for external dns.
 resource "google_dns_managed_zone" "external-dns-zone" {
-    count = var.create_dns ? 1 : 0
+  count = var.create_dns ? 1 : 0
 
-    name         = var.dns_zone_name
-    dns_name     = "${var.dns_name}."
-    description  = "Automatically managed zone by kubernetes.io/external-dns"
-    labels       = {}
-    visibility   = "public"
+  name        = var.dns_zone_name
+  dns_name    = "${var.dns_name}."
+  description = "Automatically managed zone by kubernetes.io/external-dns"
+  labels = {
+    yor_trace = "f4c9bc45-c032-4b9d-9438-ff2f58d3d83c"
+  }
+  visibility = "public"
 }
 
 // Manage DNS record sets for external dns zone.
 resource "google_dns_record_set" "external-dns-record-set" {
-    count = var.create_dns ? 1 : 0
-    managed_zone = var.managed_zone
-    name         = google_dns_managed_zone.external-dns-zone[0].dns_name
-    rrdatas      = google_dns_managed_zone.external-dns-zone[0].name_servers
-    ttl          = 300
-    type         = "NS"
+  count        = var.create_dns ? 1 : 0
+  managed_zone = var.managed_zone
+  name         = google_dns_managed_zone.external-dns-zone[0].dns_name
+  rrdatas      = google_dns_managed_zone.external-dns-zone[0].name_servers
+  ttl          = 300
+  type         = "NS"
 }
 
 
@@ -28,27 +30,27 @@ resource "kubernetes_cluster_role" "external-dns" {
   }
 
   rule {
-    api_groups = ["",]
-    resources  = ["services",]
-    verbs       = ["get", "watch", "list",]
+    api_groups = ["", ]
+    resources  = ["services", ]
+    verbs      = ["get", "watch", "list", ]
   }
 
   rule {
-    api_groups = ["",]
-    resources  = ["pods",]
-    verbs       = ["get", "watch", "list",]
+    api_groups = ["", ]
+    resources  = ["pods", ]
+    verbs      = ["get", "watch", "list", ]
   }
 
   rule {
-    api_groups = ["",]
-    resources  = ["nodes",]
-    verbs       = ["get", "watch", "list",]
+    api_groups = ["", ]
+    resources  = ["nodes", ]
+    verbs      = ["get", "watch", "list", ]
   }
 
   rule {
-    api_groups = ["extensions",]
-    resources  = ["ingresses",]
-    verbs      = ["get", "watch", "list",]
+    api_groups = ["extensions", ]
+    resources  = ["ingresses", ]
+    verbs      = ["get", "watch", "list", ]
   }
   depends_on = [google_container_node_pool.nodes]
 }
@@ -56,17 +58,17 @@ resource "kubernetes_cluster_role" "external-dns" {
 // Create service account for external-dns
 resource "kubernetes_service_account" "external-dns" {
   metadata {
-    name = "external-dns"
+    name      = "external-dns"
     namespace = kubernetes_namespace.cassandra-demo.metadata.0.name
   }
   automount_service_account_token = true
-  depends_on = [google_container_node_pool.nodes]
+  depends_on                      = [google_container_node_pool.nodes]
 }
 
 // Binding external-dns cluster role, with the external-dns Service account.
 resource "kubernetes_cluster_role_binding" "external-dns-viewer" {
   metadata {
-    name      = "external-dns-viewer"
+    name = "external-dns-viewer"
   }
   role_ref {
     api_group = "rbac.authorization.k8s.io"
@@ -83,11 +85,11 @@ resource "kubernetes_cluster_role_binding" "external-dns-viewer" {
 // Create deployment 
 resource "kubernetes_deployment" "external-dns" {
   metadata {
-    annotations      = {}
-    labels           = {
+    annotations = {}
+    labels = {
       "app" = "external-dns"
     }
-    name             = "external-dns"
+    name      = "external-dns"
     namespace = kubernetes_service_account.external-dns.metadata.0.namespace
   }
 
@@ -105,14 +107,14 @@ resource "kubernetes_deployment" "external-dns" {
     template {
       metadata {
         annotations = {}
-        labels      = {
+        labels = {
           "app" = "external-dns"
         }
       }
 
       spec {
 
-        service_account_name = kubernetes_service_account.external-dns.metadata.0.name
+        service_account_name            = kubernetes_service_account.external-dns.metadata.0.name
         automount_service_account_token = true
         container {
           args = [
@@ -124,9 +126,9 @@ resource "kubernetes_deployment" "external-dns" {
             "--registry=txt",
             "--txt-owner-id=gke-${google_container_cluster.cassandra-cluster.project}-${google_container_cluster.cassandra-cluster.location}_${google_container_cluster.cassandra-cluster.name}-${kubernetes_namespace.cassandra-demo.metadata[0].name}",
           ]
-          command                  = []
-          image                    = "bitnami/external-dns:0.5.14"
-          name                     = "external-dns"
+          command = []
+          image   = "bitnami/external-dns:0.5.14"
+          name    = "external-dns"
         }
       }
     }
